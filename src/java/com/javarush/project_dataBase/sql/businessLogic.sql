@@ -22,7 +22,7 @@ CREATE TABLE changes_by_user(
 CREATE OR REPLACE FUNCTION put_block_note() RETURNS TRIGGER
     AS $$
     BEGIN
-    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) ,new.name, 'inserted') ;
+    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) , concat('Block note - ', new.name, '. Id - ', new.block_note_id), 'inserted') ;
     return new;
     end;
 $$ LANGUAGE plpgsql;
@@ -36,7 +36,7 @@ FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE put_block_note();
 CREATE OR REPLACE FUNCTION del_block_note() RETURNS TRIGGER
 AS $$
 BEGIN
-    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) ,new.name, 'deleted') ;
+    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) , concat('Block note - ', old.name, '. Id - ', old.block_note_id), 'deleted') ;
     return new;
 end;
 $$ LANGUAGE plpgsql;
@@ -50,13 +50,18 @@ FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE del_block_note();
 CREATE OR REPLACE FUNCTION update_block_note() RETURNS TRIGGER
 AS $$
 BEGIN
-    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) ,new.name, 'updated') ;
+    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) , concat('Block note - ', new.name, '. Id - ', new.block_note_id), 'updated') ;
     return new;
-end;
+END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER tr_update_block_note ON block_notes cascade;
 
 CREATE TRIGGER tr_update_block_note AFTER UPDATE ON block_notes
 FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE update_block_note();
+
+insert into users(user_id, name, last_name, email, date_of_birth, password)
+values (1, 'dan', 'khutsaev', 'danir@gmail.com', '07.24.1995', 'querte');
+
+
 
