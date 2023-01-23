@@ -91,20 +91,18 @@ FOR EACH ROW WHEN ( pg_trigger_depth() < 1 ) EXECUTE PROCEDURE check_if_differen
 
 CREATE OR REPLACE FUNCTION relations_checker() RETURNS TRIGGER
 AS $$
-    BEGIN
-    if (select count(distinct users_block_notes.user_id) from users_block_notes where block_note_id in (select users_block_notes.block_note_id from users_block_notes where users_block_notes.user_id = old.user_id)) < 2
-        then delete from block_notes where block_note_id in (select users_block_notes.block_note_id from users_block_notes where users_block_notes.user_id = old.user_id);
-
+BEGIN
+    delete from block_notes
+    where block_note_id in (select users_block_notes.block_note_id from users_block_notes where users_block_notes.user_id = old.user_id)
+    and block_note_id not in (select users_block_notes.block_note_id from users_block_notes where users_block_notes.user_id != old.user_id);
     return old;
-    else return null;
-    end if;
-    END;
+END;
 $$LANGUAGE plpgsql;
 
 drop function relations_checker() cascade;
 DROP TRIGGER IF EXISTS tr_relations_checker on users cascade;
 
-CREATE TRIGGER tr_relations_checker after delete ON users
+CREATE TRIGGER tr_relations_checker before delete ON users
 FOR EACH ROW when ( pg_trigger_depth() < 1 ) EXECUTE PROCEDURE relations_checker();
 
 
