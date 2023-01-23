@@ -1,14 +1,27 @@
 CREATE OR REPLACE FUNCTION last_update_in_notes() RETURNS TRIGGER
 AS $$
     BEGIN
-    UPDATE notes SET last_update = NOW() WHERE note_id = OLD.note_id;
-    RETURN OLD;
-    END
+    UPDATE notes SET last_update = NOW() WHERE note_id = NEW.note_id;
+    RETURN new;
+    END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_last_update_in_notes on entries cascade ;
-CREATE TRIGGER tr_last_update_in_notes AFTER DELETE OR UPDATE OR INSERT ON entries
+CREATE TRIGGER tr_last_update_in_notes AFTER INSERT OR UPDATE ON entries
 FOR EACH ROW WHEN (pg_trigger_depth() < 1 ) EXECUTE PROCEDURE last_update_in_notes();
+
+
+CREATE OR REPLACE FUNCTION delete_entry_in_notes() RETURNS TRIGGER
+AS $$
+BEGIN
+    UPDATE notes SET last_update = NOW() WHERE note_id = OLD.note_id;
+    RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS tr_delete_in_notes on entries cascade ;
+CREATE TRIGGER tr_delete_in_notes AFTER DELETE ON entries
+FOR EACH ROW WHEN (pg_trigger_depth() < 1 ) EXECUTE PROCEDURE delete_entry_in_notes();
 
 
 CREATE TABLE changes_by_user(
@@ -60,8 +73,18 @@ DROP TRIGGER tr_update_block_note ON block_notes cascade;
 CREATE TRIGGER tr_update_block_note AFTER UPDATE ON block_notes
 FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE update_block_note();
 
-insert into users(user_id, name, last_name, email, date_of_birth, password)
-values (1, 'dan', 'khutsaev', 'danir@gmail.com', '07.24.1995', 'querte');
 
+CREATE OR REPLACE FUNCTION update_note() RETURNS TRIGGER
+AS $$
+BEGIN
+    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) , concat('Note - ', new.name, '. Id - ', new.note_id, '. Block note id - ', new.block_note_id), 'updated') ;
+    return new;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER tr_update_notes ON notes cascade;
+
+CREATE TRIGGER tr_update_notes AFTER UPDATE ON notes
+FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE update_note();
 
 
