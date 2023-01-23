@@ -44,10 +44,10 @@ CREATE TABLE teams_users(
     user_id bigint references users(user_id) on delete cascade,
     constraint teams_users_pk PRIMARY KEY (team_id, user_id)
 );
-
+drop  table users_block_notes cascade ;
 CREATE TABLE users_block_notes(
-    user_id bigint references users(user_id) on delete cascade ,
-    block_note_id bigint references block_notes(block_note_id) on delete cascade,
+    user_id bigint references users(user_id) on delete cascade on update cascade ,
+    block_note_id bigint references block_notes(block_note_id) on delete cascade on update cascade ,
     constraint users_block_notes_pk PRIMARY KEY (user_id, block_note_id)
 );
 
@@ -104,6 +104,11 @@ DROP TRIGGER IF EXISTS tr_relations_checker on users cascade;
 
 CREATE TRIGGER tr_relations_checker before delete ON users
 FOR EACH ROW when ( pg_trigger_depth() < 1 ) EXECUTE PROCEDURE relations_checker();
+
+
+
+
+
 
 
 
