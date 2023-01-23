@@ -1,3 +1,17 @@
+CREATE TABLE changes_by_user(
+    user_id bigint references users(user_id) on delete cascade,
+    what_changed varchar,
+    actions varchar,
+    last_update timestamp default current_timestamp
+);
+drop table changes_by_user cascade ;
+CREATE TABLE changes_of_user(
+    block_note_id bigint references block_notes(block_note_id) on delete cascade ,
+    user_id bigint references users(user_id),
+    what_changed varchar,
+    last_update timestamp default current_timestamp
+);
+
 CREATE OR REPLACE FUNCTION last_update_in_notes() RETURNS TRIGGER
 AS $$
     BEGIN
@@ -22,14 +36,6 @@ $$ LANGUAGE plpgsql;
 DROP TRIGGER IF EXISTS tr_delete_in_notes on entries cascade ;
 CREATE TRIGGER tr_delete_in_notes AFTER DELETE ON entries
 FOR EACH ROW WHEN (pg_trigger_depth() < 1 ) EXECUTE PROCEDURE delete_entry_in_notes();
-
-
-CREATE TABLE changes_by_user(
-    user_id bigint references users(user_id) on delete cascade,
-    what_changed varchar,
-    actions varchar,
-    last_update timestamp default current_timestamp
-);
 
 
 CREATE OR REPLACE FUNCTION put_block_note() RETURNS TRIGGER
@@ -114,6 +120,53 @@ DROP TRIGGER tr_del_notes ON notes cascade;
 
 CREATE TRIGGER tr_del_notes AFTER DELETE ON notes
 FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE del_note();
+
+
+CREATE OR REPLACE FUNCTION own_block_note() RETURNS TRIGGER
+AS $$
+BEGIN
+    insert into changes_of_user (block_note_id, user_id, what_changed)
+    values (new.block_note_id, new.user_id, concat('user became owner of the block_note'));
+    return NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER tr_own_block_note ON notes cascade;
+DROP FUNCTION own_block_note cascade;
+CREATE TRIGGER tr_own_block_note AFTER INSERT ON users_block_notes
+FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE own_block_note();
+
+
+CREATE OR REPLACE FUNCTION change_of_user() RETURNS TRIGGER
+AS $$
+BEGIN
+    insert into changes_of_user (block_note_id, user_id, what_changed)
+    values (new.block_note_id, new.user_id,
+            concat('user of block note was changed from user_id - ', old.user_id, ' to user_id - ', new.user_id, '.'));
+    return NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER tr_changes_of_user ON notes cascade;
+DROP FUNCTION change_of_user cascade;
+CREATE TRIGGER tr_changes_of_user AFTER UPDATE ON users_block_notes
+FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE change_of_user();
+
+
+CREATE OR REPLACE FUNCTION del_user() RETURNS TRIGGER
+AS $$
+BEGIN
+    insert into changes_of_user (block_note_id, user_id, what_changed)
+    values (old.block_note_id, old.user_id, concat('user or block note were deleted.'));
+    return old;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER tr_del_user ON notes cascade;
+DROP FUNCTION del_user cascade;
+CREATE TRIGGER tr_del_user BEFORE DELETE ON users_block_notes
+FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE del_user();
+
 
 
 
