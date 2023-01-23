@@ -88,3 +88,33 @@ CREATE TRIGGER tr_update_notes AFTER UPDATE ON notes
 FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE update_note();
 
 
+CREATE OR REPLACE FUNCTION insert_note() RETURNS TRIGGER
+AS $$
+BEGIN
+    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) , concat('Note - ', new.name, '. Id - ', new.note_id, '. Block note id - ', new.block_note_id), 'inserted') ;
+    return new;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER tr_update_notes ON notes cascade;
+
+CREATE TRIGGER tr_insert_notes AFTER INSERT ON notes
+FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE insert_note();
+
+
+CREATE OR REPLACE FUNCTION del_note() RETURNS TRIGGER
+AS $$
+BEGIN
+    insert into changes_by_user(user_id, what_changed, actions) values ((select user_id from users order by user_id desc limit 1) , concat('Note - ', old.name, '. Id - ', old.note_id, '. Block note id - ', old.block_note_id), 'deleted') ;
+    return old;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER tr_del_notes ON notes cascade;
+
+CREATE TRIGGER tr_del_notes AFTER DELETE ON notes
+FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE del_note();
+
+
+
+
