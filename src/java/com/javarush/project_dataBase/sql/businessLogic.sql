@@ -1,14 +1,14 @@
 CREATE TABLE changes_by_user(
-    user_id bigint references users(user_id) on delete cascade,
+    user_id bigint,
     what_changed varchar,
-    actions varchar,
+    actions varchar not null ,
     last_update timestamp default current_timestamp
 );
 drop table changes_by_user cascade ;
 CREATE TABLE changes_of_user(
-    block_note_id bigint references block_notes(block_note_id) on delete cascade ,
-    user_id bigint references users(user_id),
-    what_changed varchar,
+    block_note_id bigint,
+    user_id bigint,
+    what_changed varchar not null ,
     last_update timestamp default current_timestamp
 );
 
@@ -157,14 +157,14 @@ CREATE OR REPLACE FUNCTION del_user() RETURNS TRIGGER
 AS $$
 BEGIN
     insert into changes_of_user (block_note_id, user_id, what_changed)
-    values (old.block_note_id, old.user_id, concat('user or block note were deleted.'));
+    values (null, old.user_id, concat('user was deleted.'));
     return old;
 END;
 $$ LANGUAGE plpgsql;
 
 DROP TRIGGER tr_del_user ON notes cascade;
 DROP FUNCTION del_user cascade;
-CREATE TRIGGER tr_del_user BEFORE DELETE ON users_block_notes
+CREATE TRIGGER tr_del_user BEFORE DELETE ON users
 FOR EACH ROW WHEN (pg_trigger_depth() < 1) EXECUTE PROCEDURE del_user();
 
 
